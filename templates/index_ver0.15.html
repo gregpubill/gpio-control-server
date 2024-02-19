@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servo Control</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.8.2/dist/nipplejs.js"></script>
+    <style>
+        .joystick-container {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            margin: 20px;
+            display: inline-block;
+        }
+
+        .joystick {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div>
+    <h1>Servo Control</h1>
+    <div>
+        <label for="stepDropdown">Step for Channel 0 and 1:</label>
+        <select id="stepDropdown" onchange="updateStep()">
+            <option value="1" selected>1</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <!-- Add more options as needed -->
+        </select>
+        <label for="stepDropdown2">Step for Channel 2:</label>
+        <select id="stepDropdown2" onchange="updateStep2()">
+            <option value="1">1</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <!-- Add more options as needed -->
+        </select>
+        <button onclick="moveServo('left')">Left</button>
+        <button onclick="moveServo('right')">Right</button>
+        <button onclick="moveServo('up')">Up</button>
+        <button onclick="moveServo('down')">Down</button>
+    </div>
+
+    <div class="joystick-container" id="joystick-container">
+        <div class="joystick" id="joystick"></div>
+    </div>
+
+    <div class="joystick-container" id="joystick-container2">
+        <div class="joystick" id="joystick2"></div>
+        <button onclick="setMidway()">Set to Midway</button>
+    </div>
+
+    <div class="joystick-container" id="joystick-container3">
+        <div class="joystick" id="joystick3"></div>
+    </div>
+
+    <div class="joystick-container" id="joystick-container4">
+        <div class="joystick" id="joystick4"></div>
+        <label for="stepDropdown4">Step for Channel 8 and 9:</label>
+        <select id="stepDropdown4" onchange="updateStep4()">
+            <option value="1" selected>1</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <!-- Add more options as needed -->
+        </select>
+    </div>
+</div>
+
+<script>
+    var step = 1; // Initial step value for channels 0 and 1
+    var step2 = 5; // Initial step value for channel 2
+    var step4 = 1; // Initial step value for channel 8 and 9
+
+    function updateStep() {
+        step = parseInt(document.getElementById("stepDropdown").value);
+    }
+
+    function updateStep2() {
+        step2 = parseInt(document.getElementById("stepDropdown2").value);
+    }
+
+    function updateStep4() {
+        step4 = parseInt(document.getElementById("stepDropdown4").value);
+    }
+
+    function moveServo(direction) {
+        $.post('/move_servo', {direction: direction, step: step}, function (data) {
+            console.log(data);
+        });
+    }
+
+    var options = {
+        zone: document.getElementById('joystick'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'cyan'
+    };
+
+    var joystick = nipplejs.create(options);
+
+    joystick.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction;
+
+        if (angle >= 45 && angle < 135) {
+            direction = 'up';
+        } else if (angle >= 135 && angle < 225) {
+            direction = 'left';
+        } else if (angle >= 225 && angle < 315) {
+            direction = 'down';
+        } else {
+            direction = 'right';
+        }
+
+        moveServo(direction);
+    });
+
+    joystick.on('end', function () {
+        // Stop the servo when the joystick is released
+        moveServo('stop');
+    });
+
+    // Second joystick for left/right movement on channel 2
+    var options2 = {
+        zone: document.getElementById('joystick2'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'orange'
+    };
+
+    var joystick2 = nipplejs.create(options2);
+
+    joystick2.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction;
+
+        if (angle >= 315 || angle < 45) {
+            direction = 'left';
+        } else if (angle >= 135 && angle < 225) {
+            direction = 'right';
+        } else {
+            direction = 'stop';
+        }
+
+        moveServoChannel2(direction);
+    });
+
+    function moveServoChannel2(direction) {
+        $.post('/move_servo_channel2', {direction: direction, step: step2}, function (data) {
+            console.log(data);
+        });
+    }
+    function setMidway() {
+        $.post('/set_midway', function (data) {
+            console.log(data);
+        });
+    }
+
+// Third joystick for movement on channel 3
+    var options3 = {
+        zone: document.getElementById('joystick3'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'green'
+    };
+    var joystick3 = nipplejs.create(options3);
+    // Variable to keep track of whether the joystick is currently active
+    var isJoystickActive = false;
+
+    joystick3.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction = 'stop';
+//        var direction = 'stop';
+    
+        if (angle >= 45 && angle < 135) {
+            direction = 'up';
+        } else if (angle >= 225 && angle < 315) {
+            direction = 'down';
+        }  else {
+            direction = 'stop' ;
+        }
+    
+        // Set isJoystickActive to true if either direction is not 'stop'
+        isJoystickActive = direction !== 'stop';
+    
+        forwardslow(direction);
+        movereverse(direction);
+    });
+    
+joystick3.on('end', function () {
+    // Stop the servo when the joystick is released
+    if (isJoystickActive) {
+        stop();
+        // Reset the isJoystickActive variable
+        isJoystickActive = false;
+    }
+});
+
+function forwardslow(direction) {
+    $.ajax({
+        url: '/forward_slow',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ direction: direction }),
+        success: function(data) {
+            console.log(data);
+        },
+        error: function(xhr, status, error) {
+            console.error(xhr.responseText);
+        }
+    });
+}
+function movereverse(direction) {
+    $.ajax({
+        url: '/move_reverse',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ direction: direction }),
+        success: function(data) {
+            console.log(data);
+        },
+        error: function(xhr, status, error) {
+            console.error(xhr.responseText);
+        }
+    });
+}
+
+function stop() {
+    // Send a 'stop' command to stop the motor
+    $.post('/stop', function (data) {
+        console.log(data);
+    });
+}
+    // Fourth joystick for movement on channels 8 and 9
+    var options4 = {
+        zone: document.getElementById('joystick4'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'red'
+    };
+
+    var joystick4 = nipplejs.create(options4);
+
+    joystick4.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction;
+
+        if (angle >= 315 || angle < 45) {
+            direction = 'right';
+        } else if (angle >= 135 && angle < 225) {
+            direction = 'left';
+        } else if (angle >= 45 && angle < 135) {
+            direction = 'up';
+        } else if (angle >= 225 && angle < 315) {
+            direction = 'down';
+        } else {
+            direction = 'stop';
+        }
+
+        moveServoChannel8And9(direction);
+    });
+
+    function moveServoChannel8And9(direction) {
+        $.post('/move_servo_channel8_and_9', {direction: direction, step: step4}, function (data) {
+            console.log(data);
+        });
+    }
+
+</script>
+
+</body>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $("#forwardBtn").mousedown(function() {
+                $.ajax({
+                    url: "/forward_slow",
+                    method: "POST",
+                    success: function(response) {
+                        console.log(response);
+                    }
+                });
+            });
+
+            $("#forwardBtn").mouseup(function() {
+                $.ajax({
+                    url: "/stop",
+                    method: "POST",
+                    success: function(response) {
+                        console.log(response);
+                    }
+                });
+            });
+        });
+        $(document).ready(function() {
+            $("#reverseBtn").mousedown(function() {
+                $.ajax({
+                    url: "/move_reverse",
+                    method: "POST",
+                    success: function(response) {
+                        console.log(response);
+                    }
+                });
+            });
+
+            $("#reverseBtn").mouseup(function() {
+                $.ajax({
+                    url: "/stop",
+                    method: "POST",
+                    success: function(response) {
+                        console.log(response);
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <button id="forwardBtn">Forward</button>
+    <button id="reverseBtn">Reverse</button>
+</body>
+</html>

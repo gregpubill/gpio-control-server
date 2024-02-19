@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servo Control</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.8.2/dist/nipplejs.js"></script>
+    <style>
+        #joystick-container, #joystick-container2 {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            margin: 20px;
+            display: inline-block;
+        }
+
+        #joystick, #joystick2 {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div>
+    <h1>Servo Control</h1>
+    <div>
+        <label for="stepDropdown">Step:</label>
+        <select id="stepDropdown" onchange="updateStep()">
+            <option value="1" selected>1</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <!-- Add more options as needed -->
+        </select>
+        <button onclick="moveServo('left')">Left</button>
+        <button onclick="moveServo('right')">Right</button>
+        <button onclick="moveServo('up')">Up</button>
+        <button onclick="moveServo('down')">Down</button>
+    </div>
+
+    <div id="joystick-container">
+        <div id="joystick"></div>
+    </div>
+
+    <div id="joystick-container2">
+        <div id="joystick2"></div>
+        <button onclick="setMidway()">Set to Midway</button>
+    </div>
+</div>
+
+<script>
+    var step = 1; // Initial step value
+
+    function updateStep() {
+        step = parseInt(document.getElementById("stepDropdown").value);
+    }
+
+    function moveServo(direction) {
+        $.post('/move_servo', {direction: direction, step: step}, function (data) {
+            console.log(data);
+        });
+    }
+
+    var options = {
+        zone: document.getElementById('joystick'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'cyan'
+    };
+
+    var joystick = nipplejs.create(options);
+
+    joystick.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction;
+
+        if (angle >= 45 && angle < 135) {
+            direction = 'up';
+        } else if (angle >= 135 && angle < 225) {
+            direction = 'left';
+        } else if (angle >= 225 && angle < 315) {
+            direction = 'down';
+        } else {
+            direction = 'right';
+        }
+
+        moveServo(direction);
+    });
+
+    joystick.on('end', function () {
+        // Stop the servo when the joystick is released
+        moveServo('stop');
+    });
+
+    // Second joystick for left/right movement on channel 2
+    var options2 = {
+        zone: document.getElementById('joystick2'),
+        mode: 'static',
+        position: {left: '50%', top: '50%'},
+        size: 150,
+        color: 'orange'
+    };
+
+    var joystick2 = nipplejs.create(options2);
+
+    joystick2.on('move', function (evt, data) {
+        var angle = Math.round(data.angle.degree);
+        var direction;
+
+        if (angle >= 315 || angle < 45) {
+            direction = 'left'; // Corrected direction for moving right
+        } else if (angle >= 135 && angle < 225) {
+            direction = 'right'; // Corrected direction for moving left
+        } else {
+            direction = 'stop';
+        }
+
+        moveServoChannel2(direction);
+    });
+
+    function moveServoChannel2(direction) {
+        $.post('/move_servo_channel2', {direction: direction, step: step}, function (data) {
+            console.log(data);
+        });
+    }
+
+    function setMidway() {
+        $.post('/set_midway', function (data) {
+            console.log(data);
+        });
+    }
+</script>
+
+</body>
+</html>
+
